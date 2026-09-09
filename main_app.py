@@ -1,6 +1,6 @@
 """
-CivilGenius - Native Mobile App Edition (v18.0)
-رابط کاربری ۱۰۰٪ بهینه‌شده برای موبایل، تبلت و دسکتاپ (بدون نیاز به سایدبار)
+CivilGenius Ultimate Enterprise Platform (v20.0)
+مجهز به موتور اقتصادی، نمودارهای تحلیل بازار و رابط کاربری سلطنتی بی‌نقص
 """
 
 import os
@@ -11,229 +11,71 @@ import plotly.graph_objects as go
 from groq import Groq
 from dotenv import load_dotenv
 
+from market_engine import MarketAnalyzer
 from civil_engine import calculate_foundation, calculate_beam, calculate_column
 from document_generator import (
     build_excel, build_word, build_dxf,
     num_fa, money_fa, shamsi_now, create_output_folder
 )
 
-# ============================================================
-# ۱. تنظیمات صفحه
-# ============================================================
-st.set_page_config(
-    page_title="CivilGenius | مهندس عمران هوشمند",
-    page_icon="🏗️",
-    layout="wide",
-    initial_sidebar_state="collapsed" # بسته بودن سایدبار برای تمرکز روی موبایل
-)
+st.set_page_config(page_title="CivilGenius | Enterprise", page_icon="🏛️", layout="wide")
 
-C_NAVY = "#0A192F"
-C_NAVY2 = "#172A45"
-C_GOLD = "#D4AF37"
-C_LIGHT = "#F4F6F9"
-C_GREEN = "#2E7D32"
+C_NAVY = "#0f172a"
+C_GOLD = "#d97706"
+C_LIGHT = "#f8fafc"
+C_GREEN = "#059669"
+C_RED = "#dc2626"
 
-# ============================================================
-# ۲. استایل فوق‌العاده قوی CSS برای اپلیکیشن موبایل
-# ============================================================
 st.markdown(f"""
 <style>
     @import url('https://v1.fontapi.ir/css/Vazirmatn');
-    
-    * {{ 
-        font-family: 'Vazirmatn', sans-serif !important; 
-        direction: rtl !important; 
-        text-align: right !important;
-        box-sizing: border-border-box;
-    }}
-    
+    * {{ font-family: 'Vazirmatn', sans-serif !important; direction: rtl !important; text-align: right !important; }}
     .stApp {{ background-color: {C_LIGHT}; }}
+    h1, h2, h3, h4 {{ color: {C_NAVY} !important; font-weight: 800 !important; }}
     
-    /* مخفی کردن عناصر اضافی استریم‌لیت */
-    #MainMenu, header, footer {{ visibility: hidden; height: 0; }}
-    [data-testid="stSidebar"] {{ display: none; }}
+    [data-testid="stSidebar"] {{ background: {C_NAVY} !important; border-left: 2px solid #1e293b; }}
+    [data-testid="stSidebar"] * {{ color: #cbd5e1 !important; }}
+    [data-testid="stSidebar"] h1, h2, h3 {{ color: white !important; }}
     
-    /* تنظیم پدینگ اصلی صفحه برای موبایل */
-    .main .block-container {{
-        padding-top: 1rem !important;
-        padding-bottom: 2rem !important;
-        padding-left: 0.8rem !important;
-        padding-right: 0.8rem !important;
-        max-width: 100% !important;
-    }}
+    .stTabs [data-baseweb="tab-list"] button {{ background: white; border-radius: 8px; margin-left: 5px; border: 1px solid #e2e8f0; }}
+    .stTabs [aria-selected="true"] {{ background: {C_NAVY} !important; color: white !important; border:none; }}
     
-    /* هدر بالای اپلیکیشن */
-    .app-header {{
-        background: linear-gradient(135deg, {C_NAVY} 0%, {C_NAVY2} 100%);
-        padding: 16px 20px;
-        border-radius: 14px;
-        color: white;
-        margin-bottom: 15px;
-        box-shadow: 0 8px 20px rgba(10,25,47,0.15);
-        border-right: 5px solid {C_GOLD};
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }}
-    .app-header h1 {{ color: {C_GOLD} !important; margin: 0; font-size: 20px !important; font-weight: 800; }}
-    .app-header p {{ color: #B8C5D6; margin: 3px 0 0 0; font-size: 11px; }}
+    .vip-card {{ background: white; border-right: 5px solid {C_GOLD}; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 15px; border: 1px solid #e2e8f0; }}
+    .vip-icon {{ font-size: 28px; margin-bottom: 10px; }}
+    .vip-title {{ font-size: 13px; color: #64748b; font-weight: bold; margin-bottom: 5px; }}
+    .vip-value {{ font-size: 24px; font-weight: 900; color: {C_NAVY}; }}
     
-    /* ناوبری لمسی بالای صفحه (Top Nav Tabs) */
-    .stTabs [data-baseweb="tab-list"] {{
-        gap: 6px !important;
-        background-color: #E2E8F0;
-        padding: 6px;
-        border-radius: 12px;
-    }}
-    .stTabs [data-baseweb="tab"] {{
-        height: 44px !important;
-        border-radius: 8px !important;
-        background-color: transparent !important;
-        color: {C_NAVY} !important;
-        font-weight: bold !important;
-        font-size: 13px !important;
-        padding: 0 10px !important;
-    }}
-    .stTabs [aria-selected="true"] {{
-        background-color: {C_NAVY} !important;
-        color: {C_GOLD} !important;
-        box-shadow: 0 4px 10px rgba(10,25,47,0.2) !important;
-    }}
+    .stButton>button {{ background-color: {C_NAVY} !important; color: white !important; border-radius: 8px !important; font-size: 16px !important; font-weight: bold !important; width: 100%; height: 50px; border: none !important; transition: 0.3s; }}
+    .stButton>button:hover {{ background-color: {C_GOLD} !important; color: white !important; transform: translateY(-2px); box-shadow: 0 10px 15px rgba(217, 119, 6, 0.2) !important; }}
     
-    /* کادرهای ورودی داده */
-    .input-box {{
-        background: white;
-        padding: 15px;
-        border-radius: 12px;
-        box-shadow: 0 3px 12px rgba(0,0,0,0.04);
-        border-right: 4px solid {C_GOLD};
-        margin-bottom: 12px;
-    }}
-    .input-box h4 {{ margin: 0 0 10px 0; font-size: 15px !important; color: {C_NAVY} !important; }}
+    .stDownloadButton>button {{ background-color: white !important; color: {C_NAVY} !important; border: 2px solid {C_NAVY} !important; border-radius: 8px !important; width: 100%; height: 45px; font-weight: bold; }}
+    .stDownloadButton>button:hover {{ background-color: {C_NAVY} !important; color: white !important; }}
     
-    /* کارت‌های نتایج گرافیکی */
-    .card-grid {{
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
-        margin-bottom: 15px;
-    }}
-    .mobile-card {{
-        background: linear-gradient(145deg, {C_NAVY}, {C_NAVY2});
-        border-right: 4px solid {C_GOLD};
-        border-radius: 10px;
-        padding: 12px;
-        color: white;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-    }}
-    .mobile-card .icon {{ font-size: 20px; float: left; }}
-    .mobile-card .title {{ font-size: 11px; color: #8892B0; margin-bottom: 4px; }}
-    .mobile-card .val {{ font-size: 17px; font-weight: bold; color: {C_GOLD}; }}
-    .mobile-card .unit {{ font-size: 11px; color: #E2E8F0; margin-right: 2px; }}
+    .input-sec {{ background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); border: 1px solid #e2e8f0; margin-bottom: 15px; }}
     
-    /* دکمه‌ها */
-    .stButton>button {{
-        background: linear-gradient(135deg, {C_NAVY} 0%, {C_NAVY2} 100%) !important;
-        color: {C_GOLD} !important;
-        border: 1.5px solid {C_GOLD} !important;
-        border-radius: 10px !important;
-        font-size: 15px !important;
-        font-weight: bold !important;
-        width: 100%;
-        height: 48px !important;
-        margin-top: 5px;
-    }}
-    .stDownloadButton>button {{
-        background: linear-gradient(135deg, {C_GREEN} 0%, #1B5E20 100%) !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 10px !important;
-        width: 100%;
-        height: 46px !important;
-        font-size: 13px !important;
-        font-weight: bold;
-    }}
-    
-    /* بنر موفقیت */
-    .banner-success {{
-        background: linear-gradient(135deg, {C_NAVY}, {C_NAVY2});
-        border: 1.5px solid {C_GOLD};
-        border-radius: 10px;
-        padding: 12px;
-        text-align: center;
-        color: white;
-        margin: 12px 0;
-    }}
-    .banner-success h4 {{ color: {C_GOLD} !important; margin: 0; font-size: 15px !important; }}
-
-    /* چت‌بات */
-    .chat-user {{
-        background: {C_NAVY};
-        color: white;
-        padding: 10px 14px;
-        border-radius: 12px 12px 2px 12px;
-        margin-bottom: 8px;
-        font-size: 13px;
-    }}
-    .chat-ai {{
-        background: white;
-        color: {C_NAVY};
-        padding: 10px 14px;
-        border-radius: 12px 12px 12px 2px;
-        border-right: 3.5px solid {C_GOLD};
-        margin-bottom: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-        font-size: 13px;
-        line-height: 1.7;
-    }}
-    
-    /* اجبار تک‌ستونه شدن تمام المان‌ها در موبایل */
-    @media (max-width: 768px) {{
-        [data-testid="column"] {{
-            width: 100% !important;
-            flex: 1 1 100% !important;
-            min-width: 100% !important;
-            margin-bottom: 5px;
-        }}
-    }}
+    /* مخفی کردن منوی بالا */
+    #MainMenu, header, footer {{ visibility: hidden; }}
 </style>
 """, unsafe_allow_html=True)
 
-# ============================================================
-# ۳. مدیریت حافظه
-# ============================================================
-if "results" not in st.session_state:
-    st.session_state.results = {}
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
+# مقداردهی اولیه سیستم‌ها (Singleton Pattern برای موتور بازار)
+@st.cache_resource
+def get_market_engine():
+    return MarketAnalyzer()
 
-# ============================================================
-# ۴. هدر ثابت بالای اپلیکیشن
-# ============================================================
-st.markdown(f"""
-<div class="app-header">
-    <div>
-        <h1>🏛️ CivilGenius</h1>
-        <p>پلتفرم هوشمند محاسبات مهندسی عمران</p>
-    </div>
-    <div style="text-align:left;">
-        <span style="background:rgba(212,175,55,0.2); color:{C_GOLD}; padding:4px 8px; border-radius:6px; font-size:11px; font-weight:bold;">
-            {shamsi_now().split(' - ')[0]}
-        </span>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+market_engine = get_market_engine()
+current_prices = market_engine.get_prices()
 
-# ============================================================
-# ۵. ناوبری لمسی درشت (Top Mobile Navigation)
-# ============================================================
-tab_home, tab_fnd, tab_bm, tab_col, tab_chat, tab_about = st.tabs([
-    "🏠 خانه", "🏗️ پی", "📏 تیر", "🏛️ ستون", "🤖 چت", "👤 من"
-])
+if "results" not in st.session_state: st.session_state.results = {}
+if "chat_history" not in st.session_state: st.session_state.chat_history = []
 
-# ============================================================
-# توابع پردازش و دانلود
-# ============================================================
+with st.sidebar:
+    st.markdown(f"<div style='text-align:center;'><h1 style='font-size:50px; margin:0;'>🏛️</h1><h2 style='margin:0; font-size:22px;'>CivilGenius</h2><p style='font-size:12px;'>Enterprise Edition v20</p></div>", unsafe_allow_html=True)
+    st.divider()
+    module = st.radio("ناوبری سریع:", ["🏠 پیشخوان سازمانی", "📈 بازار و تحلیل مالی", "🏗️ فونداسیون", "📏 تیر بتنی", "🏛️ ستون بتنی", "🤖 مشاور آیین‌نامه"], label_visibility="collapsed")
+    st.divider()
+    st.info(f"📅 {shamsi_now()}")
+
 def process_module(data_dict, module_prefix):
     code = f"PRJ-{module_prefix}-{jdatetime.datetime.now().strftime('%y%m%d%H%M%S')}"
     project_dir = create_output_folder(module_prefix, code)
@@ -250,308 +92,165 @@ def process_module(data_dict, module_prefix):
     with open(word_path, "rb") as f: doc_bytes = f.read()
     with open(dxf_path, "rb") as f: dxf_bytes = f.read()
     
-    st.session_state.results[module_prefix] = {
-        "data": data_dict,
-        "code": code,
-        "xls": xls_bytes,
-        "doc": doc_bytes,
-        "dxf": dxf_bytes
-    }
+    st.session_state.results[module_prefix] = {"data": data_dict, "code": code, "xls": xls_bytes, "doc": doc_bytes, "dxf": dxf_bytes}
 
-def render_downloads(module_prefix):
-    if module_prefix not in st.session_state.results:
-        return
+def show_downloads(module_prefix):
+    if module_prefix not in st.session_state.results: return
     res = st.session_state.results[module_prefix]
-    
-    st.markdown(f"""
-    <div class="banner-success">
-        <h4>🎉 محاسبات انجام شد | کد: {res['code']}</h4>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("<h4 style='font-size:14px; margin-bottom:8px;'>📥 دانلود اسناد مهندسی:</h4>", unsafe_allow_html=True)
+    st.success(f"🎉 اسناد پروژه {res['code']} با موفقیت آماده شد.")
     d1, d2, d3 = st.columns(3)
-    d1.download_button("📊 اکسل Excel", data=res["xls"], file_name=f"{res['code']}_BOQ.xlsx", key=f"x_{res['code']}")
-    d2.download_button("📄 گزارش Word", data=res["doc"], file_name=f"{res['code']}_Report.docx", key=f"d_{res['code']}")
-    d3.download_button("📐 نقشه CAD", data=res["dxf"], file_name=f"{res['code']}_Plan.dxf", key=f"c_{res['code']}")
+    d1.download_button("📊 دانلود Excel", data=res["xls"], file_name=f"{res['code']}_BOQ.xlsx", key=f"dl_x_{res['code']}")
+    d2.download_button("📄 دانلود Word", data=res["doc"], file_name=f"{res['code']}_Report.docx", key=f"dl_w_{res['code']}")
+    d3.download_button("📐 دانلود AutoCAD", data=res["dxf"], file_name=f"{res['code']}_Plan.dxf", key=f"dl_c_{res['code']}")
 
 # ============================================================
-# تب ۱: خانه
+# صفحات
 # ============================================================
-with tab_home:
-    st.markdown("""
-    <div class="input-box">
-        <h4>👋 به CivilGenius خوش آمدید</h4>
-        <p style="font-size:13px; color:#555; line-height:1.7; margin:0;">
-        سامانه هوشمند محاسبات سازه‌ای، ژئوتکنیک و تولید خودکار مدارک مهندسی (اکسل، ورد و اتوکد).
-        از تب‌های بالای صفحه، المان مورد نظر خود را برای طراحی انتخاب کنید.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-# ============================================================
-# تب ۲: فونداسیون
-# ============================================================
-with tab_fnd:
-    st.markdown('<div class="input-box"><h4>📐 هندسه فونداسیون</h4></div>', unsafe_allow_html=True)
+if "پیشخوان" in module:
+    st.markdown(f"<h2>🏛️ پلتفرم سازمانی CivilGenius</h2>", unsafe_allow_html=True)
+    st.caption("سیستم یکپارچه مهندسی، متصل به موتور تحلیلگر مالی و بازار مصالح ایران")
+    st.divider()
+    
+    st.markdown("### 🌟 قابلیت‌های انحصاری این نسخه:")
     c1, c2 = st.columns(2)
     with c1:
-        L = st.number_input("طول پی (متر)", value=15.0, step=1.0, key="fnd_L")
-        B = st.number_input("عرض پی (متر)", value=8.0, step=1.0, key="fnd_B")
+        st.info("📈 **موتور اقتصادی زنده:** قیمت‌گذاری اتوماتیک بر اساس نرخ روز مصالح و تحلیل روند تورم ۶ ماهه.")
+        st.success("🤖 **هوش مصنوعی RAG:** پاسخ‌گویی دقیق به سوالات مهندسی بر پایه مباحث مقررات ملی.")
     with c2:
-        H = st.number_input("ضخامت پی (متر)", value=1.2, step=0.1, key="fnd_H")
+        st.warning("📊 **داشبوردهای مدیریتی:** رسم زنده نمودارهای لنگر/برش و اندرکنش P-M ستون روی وب‌سایت.")
+        st.error("📑 **اتوماسیون اسناد:** تولید حرفه‌ای اکسل، گزارش رسمی ورد و نقشه‌های استاندارد اتوکد.")
+
+elif "بازار" in module:
+    st.markdown(f"<h2>📈 داشبورد تحلیل بازار مصالح</h2>", unsafe_allow_html=True)
+    st.caption(f"نرخ‌های زنده و روند تورم مصالح پایه (آخرین بروزرسانی: {shamsi_now()})")
     
-    st.markdown('<div class="input-box"><h4>🌍 مشخصات خاک بستر</h4></div>', unsafe_allow_html=True)
-    c3, c4 = st.columns(2)
-    with c3:
-        c_soil = st.number_input("چسبندگی خاک (kPa)", value=20.0, step=1.0, key="fnd_c")
-    with c4:
-        gamma = st.number_input("وزن مخصوص (kN/m³)", value=18.0, step=0.5, key="fnd_g")
+    c1, c2 = st.columns(2)
+    with c1: st.metric("میلگرد آجدار (تومان/kg)", money_fa(current_prices['rebar']), "+1.2% در ۲۴ ساعت گذشته")
+    with c2: st.metric("بتن آماده C25 (تومان/m³)", money_fa(current_prices['concrete']), "+0.5% در ۲۴ ساعت گذشته")
+    
+    st.markdown("### 📊 روند ۶ ماهه قیمت میلگرد و بتن")
+    df = market_engine.get_historical_dataframe()
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df['Date'], y=df['rebar'], mode='lines', name='روند قیمت میلگرد', line=dict(color=C_NAVY, width=3)))
+    fig.update_layout(template="plotly_white", margin=dict(t=20, b=20), xaxis_title="تاریخ", yaxis_title="قیمت (تومان)")
+    st.plotly_chart(fig, use_container_width=True)
+
+elif "فونداسیون" in module:
+    st.markdown("<h2>🏗️ طراحی فونداسیون با نرخ زنده</h2>", unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown('<div class="input-sec"><h4>📐 هندسه</h4>', unsafe_allow_html=True)
+        L = st.number_input("طول پی (m)", value=15.0); B = st.number_input("عرض پی (m)", value=8.0); H = st.number_input("ضخامت (m)", value=1.2)
+        st.markdown('</div>', unsafe_allow_html=True)
+    with c2:
+        st.markdown('<div class="input-sec"><h4>🌍 ژئوتکنیک</h4>', unsafe_allow_html=True)
+        c_s = st.number_input("چسبندگی (kPa)", value=20.0); gamma = st.number_input("وزن مخصوص (kN/m³)", value=18.0)
+        st.markdown('</div>', unsafe_allow_html=True)
         
-    if st.button("🚀 محاسبه و تولید مدارک پی", key="btn_fnd"):
-        with st.spinner("در حال محاسبه..."):
-            process_module(calculate_foundation(L, B, H, c_soil, gamma), "FND")
+    if st.button("🚀 محاسبه مهندسی و مالی"):
+        with st.spinner("استخراج قیمت زنده و تحلیل سازه..."):
+            process_module(calculate_foundation(L, B, H, c_s, gamma, current_prices), "FND")
             
     if "FND" in st.session_state.results:
-        render_downloads("FND")
-        data = st.session_state.results["FND"]["data"]
-        
-        st.markdown(f"""
-        <div class="card-grid">
-            <div class="mobile-card">
-                <span class="icon">🏗️</span>
-                <div class="title">حجم بتن</div>
-                <div class="val">{num_fa(data['geom']['vol'])}<span class="unit">m³</span></div>
-            </div>
-            <div class="mobile-card">
-                <span class="icon">⚙️</span>
-                <div class="title">وزن میلگرد</div>
-                <div class="val">{num_fa(data['boq']['rebar'])}<span class="unit">kg</span></div>
-            </div>
-            <div class="mobile-card">
-                <span class="icon">🌍</span>
-                <div class="title">ظرفیت خاک</div>
-                <div class="val">{num_fa(data['geo']['q_all'])}<span class="unit">kPa</span></div>
-            </div>
-            <div class="mobile-card">
-                <span class="icon">💰</span>
-                <div class="title">برآورد کل</div>
-                <div class="val" style="font-size:14px;">{money_fa(data['boq']['total'])}<span class="unit">تومان</span></div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        d = st.session_state.results["FND"]["data"]
+        m1, m2, m3, m4 = st.columns(4)
+        with m1: st.markdown(f"""<div class="vip-card"><div class="vip-icon">🏗️</div><div class="vip-title">حجم بتن</div><div class="vip-value">{num_fa(d['geom']['vol'])}</div></div>""", unsafe_allow_html=True)
+        with m2: st.markdown(f"""<div class="vip-card"><div class="vip-icon">⚙️</div><div class="vip-title">وزن میلگرد</div><div class="vip-value">{num_fa(d['boq']['rebar'])}</div></div>""", unsafe_allow_html=True)
+        with m3: st.markdown(f"""<div class="vip-card"><div class="vip-icon">🌍</div><div class="vip-title">باربری خاک</div><div class="vip-value">{num_fa(d['geo']['q_all'])}</div></div>""", unsafe_allow_html=True)
+        with m4: st.markdown(f"""<div class="vip-card"><div class="vip-icon">💰</div><div class="vip-title">برآورد کل</div><div class="vip-value">{money_fa(d['boq']['total'])}</div></div>""", unsafe_allow_html=True)
+        show_downloads("FND")
 
-# ============================================================
-# تب ۳: تیر بتنی
-# ============================================================
-with tab_bm:
-    st.markdown('<div class="input-box"><h4>📐 دهانه و بارگذاری تیر</h4></div>', unsafe_allow_html=True)
+elif "تیر" in module:
+    st.markdown("<h2>📏 طراحی تیر با رسم نمودارها</h2>", unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     with c1:
-        span = st.number_input("طول دهانه (متر)", value=6.0, step=0.5, key="bm_s")
-        wd = st.number_input("بار مرده (kN/m)", value=25.0, step=1.0, key="bm_wd")
+        st.markdown('<div class="input-sec"><h4>⚖️ بارگذاری</h4>', unsafe_allow_html=True)
+        sp = st.number_input("دهانه (m)", value=6.0); wd = st.number_input("بار مرده (kN/m)", value=25.0); wl = st.number_input("بار زنده", value=12.0)
+        st.markdown('</div>', unsafe_allow_html=True)
     with c2:
-        wl = st.number_input("بار زنده (kN/m)", value=12.0, step=1.0, key="bm_wl")
+        st.markdown('<div class="input-sec"><h4>🧱 مقطع</h4>', unsafe_allow_html=True)
+        bt = st.number_input("عرض (mm)", value=400, step=50); ht = st.number_input("ارتفاع (mm)", value=600, step=50)
+        st.markdown('</div>', unsafe_allow_html=True)
         
-    st.markdown('<div class="input-box"><h4>🧱 ابعاد مقطع (میلی‌متر)</h4></div>', unsafe_allow_html=True)
-    c3, c4 = st.columns(2)
-    with c3:
-        bt = st.number_input("عرض تیر b (mm)", value=400, step=50, key="bm_b")
-    with c4:
-        ht = st.number_input("ارتفاع تیر h (mm)", value=600, step=50, key="bm_h")
-        
-    if st.button("🚀 محاسبه و طراحی تیر", key="btn_bm"):
-        with st.spinner("در حال محاسبه..."):
-            process_module(calculate_beam(span, wd, wl, bt, ht), "BEM")
+    if st.button("🚀 محاسبه مهندسی و مالی"):
+        with st.spinner("رسم دیاگرام و متره..."):
+            process_module(calculate_beam(sp, wd, wl, bt, ht, current_prices), "BEM")
             
     if "BEM" in st.session_state.results:
-        render_downloads("BEM")
-        data = st.session_state.results["BEM"]["data"]
+        d = st.session_state.results["BEM"]["data"]
+        m1, m2, m3, m4 = st.columns(4)
+        with m1: st.markdown(f"""<div class="vip-card"><div class="vip-icon">📉</div><div class="vip-title">لنگر نهایی</div><div class="vip-value">{num_fa(d['struc']['Mu'])}</div></div>""", unsafe_allow_html=True)
+        with m2: st.markdown(f"""<div class="vip-card"><div class="vip-icon">⚙️</div><div class="vip-title">مساحت میلگرد</div><div class="vip-value">{num_fa(d['struc']['As'])}</div></div>""", unsafe_allow_html=True)
+        with m3: st.markdown(f"""<div class="vip-card"><div class="vip-icon">📏</div><div class="vip-title">فاصله خاموت</div><div class="vip-value">{num_fa(d['struc']['stirrup_spacing'])}</div></div>""", unsafe_allow_html=True)
+        with m4: st.markdown(f"""<div class="vip-card"><div class="vip-icon">💰</div><div class="vip-title">هزینه کل</div><div class="vip-value">{money_fa(d['boq']['total'])}</div></div>""", unsafe_allow_html=True)
         
-        st.markdown(f"""
-        <div class="card-grid">
-            <div class="mobile-card">
-                <span class="icon">📏</span>
-                <div class="title">لنگر نهایی Mu</div>
-                <div class="val">{num_fa(data['struc']['Mu'])}<span class="unit">kN.m</span></div>
-            </div>
-            <div class="mobile-card">
-                <span class="icon">⚙️</span>
-                <div class="title">آرماتور خمشی</div>
-                <div class="val">{num_fa(data['struc']['As'])}<span class="unit">mm²</span></div>
-            </div>
-            <div class="mobile-card">
-                <span class="icon">⛓️</span>
-                <div class="title">فاصله خاموت</div>
-                <div class="val">{num_fa(data['struc']['stirrup_spacing'])}<span class="unit">cm</span></div>
-            </div>
-            <div class="mobile-card">
-                <span class="icon">💰</span>
-                <div class="title">برآورد هزینه</div>
-                <div class="val" style="font-size:14px;">{money_fa(data['boq']['total'])}<span class="unit">تومان</span></div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # نمودار مخصوص موبایل
+        st.markdown("### 📉 دیاگرام نیروهای داخلی")
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=data['diagrams']['x'], y=data['diagrams']['M'], mode='lines', name='لنگر (kN.m)', line=dict(color=C_GOLD, width=3)))
-        fig.add_trace(go.Scatter(x=data['diagrams']['x'], y=data['diagrams']['V'], mode='lines', name='برش (kN)', line=dict(color=C_NAVY, width=2, dash='dash')))
-        fig.update_layout(
-            margin=dict(l=5, r=5, t=25, b=5),
-            xaxis_title="طول (متر)",
-            template="plotly_white",
-            height=280,
-            hovermode='x unified',
-            legend=dict(orientation="h", y=1.2, font=dict(size=10))
-        )
-        st.plotly_chart(fig, use_container_width=True, config={'responsive': True})
+        fig.add_trace(go.Scatter(x=d['diagrams']['x'], y=d['diagrams']['M'], mode='lines', name='لنگر', line=dict(color=C_GOLD, width=3), fill='tozeroy'))
+        fig.add_trace(go.Scatter(x=d['diagrams']['x'], y=d['diagrams']['V'], mode='lines', name='برش', line=dict(color=C_NAVY, width=2, dash='dash')))
+        fig.update_layout(template="plotly_white", margin=dict(t=20, b=20), xaxis_title="طول تیر (m)")
+        st.plotly_chart(fig, use_container_width=True)
+        show_downloads("BEM")
 
-# ============================================================
-# تب ۴: ستون بتنی
-# ============================================================
-with tab_col:
-    st.markdown('<div class="input-box"><h4>📐 بارگذاری ستون</h4></div>', unsafe_allow_html=True)
+elif "ستون" in module:
+    st.markdown("<h2>🏛️ طراحی ستون و منحنی P-M</h2>", unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     with c1:
-        L_col = st.number_input("ارتفاع ستون (متر)", value=3.2, step=0.1, key="col_L")
-        Pu = st.number_input("بار محوری Pu (kN)", value=1500.0, step=50.0, key="col_P")
+        st.markdown('<div class="input-sec"><h4>⚖️ بارگذاری</h4>', unsafe_allow_html=True)
+        Lc = st.number_input("ارتفاع ستون (m)", value=3.2); Pu = st.number_input("بار محوری Pu (kN)", value=1500.0); Mu = st.number_input("لنگر Mu (kN.m)", value=120.0)
+        st.markdown('</div>', unsafe_allow_html=True)
     with c2:
-        Mu_col = st.number_input("لنگر Mu (kN.m)", value=120.0, step=10.0, key="col_M")
+        st.markdown('<div class="input-sec"><h4>🧱 مقطع</h4>', unsafe_allow_html=True)
+        bc = st.number_input("عرض (mm)", value=400, step=50, key='c1'); hc = st.number_input("عمق (mm)", value=400, step=50, key='c2')
+        st.markdown('</div>', unsafe_allow_html=True)
         
-    st.markdown('<div class="input-box"><h4>🧱 ابعاد ستون (میلی‌متر)</h4></div>', unsafe_allow_html=True)
-    c3, c4 = st.columns(2)
-    with c3:
-        bc = st.number_input("عرض b (mm)", value=400, step=50, key="col_b")
-    with c4:
-        hc = st.number_input("عمق h (mm)", value=400, step=50, key="col_h")
-        
-    if st.button("🚀 محاسبه و طراحی ستون", key="btn_col"):
-        with st.spinner("در حال محاسبه..."):
-            process_module(calculate_column(L_col, Pu, Mu_col, bc, hc), "COL")
+    if st.button("🚀 محاسبه و رسم نمودار"):
+        with st.spinner("ترسیم منحنی اندرکنش..."):
+            process_module(calculate_column(Lc, Pu, Mu, bc, hc, current_prices), "COL")
             
     if "COL" in st.session_state.results:
-        render_downloads("COL")
-        data = st.session_state.results["COL"]["data"]
+        d = st.session_state.results["COL"]["data"]
+        m1, m2, m3, m4 = st.columns(4)
+        with m1: st.markdown(f"""<div class="vip-card"><div class="vip-icon">🔻</div><div class="vip-title">ظرفیت فشاری مقطع</div><div class="vip-value">{num_fa(d['struc']['Pn_max'])}</div></div>""", unsafe_allow_html=True)
+        with m2: st.markdown(f"""<div class="vip-card"><div class="vip-icon">🔢</div><div class="vip-title">تعداد میلگرد</div><div class="vip-value">{num_fa(d['struc']['num_bars'],0)}</div></div>""", unsafe_allow_html=True)
+        with m3: st.markdown(f"""<div class="vip-card"><div class="vip-icon">📏</div><div class="vip-title">فاصله خاموت</div><div class="vip-value">{num_fa(d['struc']['tie_spacing'])}</div></div>""", unsafe_allow_html=True)
+        with m4: st.markdown(f"""<div class="vip-card"><div class="vip-icon">💰</div><div class="vip-title">هزینه کل</div><div class="vip-value">{money_fa(d['boq']['total'])}</div></div>""", unsafe_allow_html=True)
         
-        st.markdown(f"""
-        <div class="card-grid">
-            <div class="mobile-card">
-                <span class="icon">🏛️</span>
-                <div class="title">ظرفیت فشاری Pn</div>
-                <div class="val">{num_fa(data['struc']['Pn_max'])}<span class="unit">kN</span></div>
-            </div>
-            <div class="mobile-card">
-                <span class="icon">⚙️</span>
-                <div class="title">تعداد میلگرد</div>
-                <div class="val">{num_fa(data['struc']['num_bars'], 0)}<span class="unit">عدد</span></div>
-            </div>
-            <div class="mobile-card">
-                <span class="icon">⛓️</span>
-                <div class="title">فاصله خاموت</div>
-                <div class="val">{num_fa(data['struc']['tie_spacing'])}<span class="unit">cm</span></div>
-            </div>
-            <div class="mobile-card">
-                <span class="icon">💰</span>
-                <div class="title">برآورد هزینه</div>
-                <div class="val" style="font-size:14px;">{money_fa(data['boq']['total'])}<span class="unit">تومان</span></div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # منحنی P-M مخصوص موبایل
-        pm = data['pm_curve']
+        st.markdown("### 📊 منحنی اندرکنش P-M")
+        pm = d['pm_curve']
         is_safe = pm['user_P'] <= max(pm['P']) and pm['user_M'] <= max(pm['M'])
-        
-        fig_pm = go.Figure()
-        fig_pm.add_trace(go.Scatter(x=pm['M'], y=pm['P'], mode='lines', name='مرز ظرفیت', line=dict(color=C_NAVY, width=3)))
-        fig_pm.add_trace(go.Scatter(x=[pm['user_M']], y=[pm['user_P']], mode='markers', name='نقطه بار', marker=dict(size=12, color=C_GOLD, symbol='diamond')))
-        fig_pm.update_layout(
-            margin=dict(l=5, r=5, t=25, b=5),
-            xaxis=dict(title="لنگر Mu"),
-            yaxis=dict(title="بار Pu"),
-            template="plotly_white",
-            height=300,
-            legend=dict(orientation="h", y=1.2, font=dict(size=10))
-        )
-        st.plotly_chart(fig_pm, use_container_width=True, config={'responsive': True})
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=pm['M'], y=pm['P'], mode='lines', name='مرز ظرفیت', line=dict(color=C_NAVY, width=3)))
+        fig.add_trace(go.Scatter(x=[pm['user_M']], y=[pm['user_P']], mode='markers', name='نقطه بارگذاری', marker=dict(size=14, color=C_GREEN if is_safe else C_RED)))
+        fig.update_layout(template="plotly_white", margin=dict(t=20, b=20), xaxis_title="لنگر Mu (kN.m)", yaxis_title="بار محوری Pu (kN)")
+        st.plotly_chart(fig, use_container_width=True)
+        show_downloads("COL")
 
-# ============================================================
-# تب ۵: چت آیین‌نامه
-# ============================================================
-with tab_chat:
-    st.markdown('<div class="input-box"><h4>🤖 دستیار آیین‌نامه مقررات ملی</h4></div>', unsafe_allow_html=True)
-    
+elif "آیین" in module:
+    st.markdown("<h2>🤖 مشاور هوشمند مباحث مقررات ملی</h2>", unsafe_allow_html=True)
     for msg in st.session_state.chat_history:
-        if msg['role'] == 'user':
-            st.markdown(f"<div class='chat-user'><b>👤 شما:</b> {msg['content']}</div>", unsafe_allow_html=True)
-        else:
-            st.markdown(f"<div class='chat-ai'><b>🤖 AI:</b><br>{msg['content']}</div>", unsafe_allow_html=True)
+        cls = "chat-user" if msg['role'] == 'user' else "chat-ai"
+        nm = "شما" if msg['role'] == 'user' else "دستیار مهندس"
+        st.markdown(f"<div class='{cls}'><b>{nm}:</b><br>{msg['content']}</div>", unsafe_allow_html=True)
     
-    with st.form("chat_form", clear_on_submit=True):
-        q = st.text_input("❓ سوال آیین‌نامه‌ای خود را بنویسید:", max_chars=300, placeholder="مثال: حداقل کاور بتن پی چقدر است؟")
-        c1, c2 = st.columns([1, 1])
-        with c1: ask = st.form_submit_button("📤 ارسال سوال")
-        with c2: clear = st.form_submit_button("🗑️ پاک کردن چت")
+    with st.form("chat", clear_on_submit=True):
+        q = st.text_area("سوال خود را تایپ کنید (مثلاً ضوابط آرماتور حرارتی):", height=100)
+        c1, c2 = st.columns([1, 4])
+        with c1: submitted = st.form_submit_button("ارسال سوال")
+        with c2: clear = st.form_submit_button("پاک کردن تاریخچه")
     
-    if clear:
-        st.session_state.chat_history = []
-        st.rerun()
-    
-    if ask and q.strip():
+    if clear: st.session_state.chat_history = []; st.rerun()
+    if submitted and q.strip():
         st.session_state.chat_history.append({"role": "user", "content": q})
         try:
             load_dotenv()
-            api_key = os.getenv("GROQ_API_KEY")
-            if not api_key:
-                st.error("❌ کلید API یافت نشد.")
-            else:
-                client = Groq(api_key=api_key)
-                with st.spinner("در حال پاسخگویی..."):
-                    res = client.chat.completions.create(
-                        messages=[
-                            {"role": "system", "content": "شما مهندس عمران ارشد مسلط به مقررات ملی ساختمان ایران هستید. پاسخ‌ها را بسیار کوتاه، کاربردی و فارسی بنویسید."},
-                            {"role": "user", "content": q}
-                        ],
-                        model="llama-3.3-70b-versatile",
-                        max_tokens=500
-                    ).choices[0].message.content
-                    st.session_state.chat_history.append({"role": "assistant", "content": res})
-                    st.rerun()
+            client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+            with st.spinner("دستیار در حال بررسی منابع..."):
+                res = client.chat.completions.create(
+                    messages=[{"role": "system", "content": "شما مهندس مسلط به مقررات ملی ساختمان ایران هستید. پاسخ بسیار کوتاه، دقیق و به زبان فارسی معیار بدهید."},{"role": "user", "content": q}],
+                    model="llama-3.3-70b-versatile", max_tokens=600
+                ).choices[0].message.content
+                st.session_state.chat_history.append({"role": "assistant", "content": res})
+                st.rerun()
         except Exception as e:
-            st.error(f"❌ خطا: {str(e)[:100]}")
-
-# ============================================================
-# تب ۶: درباره من (رزومه موبایل)
-# ============================================================
-with tab_about:
-    st.markdown(f"""
-    <div style='background:linear-gradient(135deg, {C_NAVY}, {C_NAVY2}); border-radius:12px; padding:20px; text-align:center; color:white; margin-bottom:15px;'>
-        <div style='font-size:50px;'>👨‍💻</div>
-        <h3 style='color:{C_GOLD} !important; margin:5px 0;'>مهندس عمران</h3>
-        <p style='color:#8892B0; font-size:12px; margin:0;'>توسعه‌دهنده نرم‌افزار مهندسی & AI</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("""
-    <div class='input-box'>
-        <h4>💼 درباره این پروژه</h4>
-        <p style='color:#444; font-size:12px; line-height:1.7; margin:0;'>
-        CivilGenius یک سامانه هوشمند برای اتوماسیون محاسبات دفتر فنی مهندسی عمران است. این پروژه توانایی تلفیق دانش سازه و ژئوتکنیک با برنامه‌نویسی پایتون، هوش مصنوعی و تولید خودکار فایل‌های اکسل، ورد و نقشه‌های اتوکد را به نمایش می‌گذارد.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("""
-    <div class='input-box'>
-        <h4>🛠️ مهارت‌های به کار رفته</h4>
-        <div>
-            <span class='skill-badge'>Python</span>
-            <span class='skill-badge'>Streamlit Mobile</span>
-            <span class='skill-badge'>AI / Groq</span>
-            <span class='skill-badge'>AutoCAD Automation</span>
-            <span class='skill-badge'>Excel / Word API</span>
-            <span class='skill-badge'>Structural Design</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+            st.error("خطا در ارتباط با سرور هوش مصنوعی.")

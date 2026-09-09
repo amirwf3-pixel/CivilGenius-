@@ -9,3 +9,4 @@ jdatetime
 plotly
 matplotlib
 python-dotenv
+pandas
