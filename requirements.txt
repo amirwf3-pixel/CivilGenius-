@@ -1,0 +1,11 @@
+streamlit
+groq
+openpyxl
+python-docx
+ezdxf
+arabic-reshaper
+python-bidi
+jdatetime
+plotly
+matplotlib
+python-dotenv
