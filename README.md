@@ -1,3 +1,4 @@
+⚠️ Superseded by `CivilGenius` — kept for history.
 # 🏛️ CivilGenius - پلتفرم هوشمند مهندسی عمران
 
 > **سامانه خودکار محاسبات سازه‌ای، ارزیابی ژئوتکنیک و تولید اسناد مهندسی (Excel, Word, AutoCAD)**
